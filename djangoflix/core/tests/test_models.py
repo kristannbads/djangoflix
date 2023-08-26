@@ -54,3 +54,17 @@ class ModelTests(TestCase):
 
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
+
+    def test_create_video(self):
+        """Test creating a video is successful."""
+
+        user = get_user_model().objects.create_user(
+            "test@example.com",
+            "testpass123",
+        )
+
+        video = models.Video.objects.create(
+            user=user, title="Sample Video", description="Sample desc"
+        )
+
+        self.assertEqual(str(video), video.title)

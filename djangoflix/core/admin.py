@@ -49,3 +49,36 @@ class UserAdmin(BaseUserAdmin):
 
 
 admin.site.register(models.User, UserAdmin)
+
+
+class VideoAllAdmin(admin.ModelAdmin):
+    list_display = ["title", "video_id", "state", "is_published"]
+    search_fields = ["title"]
+    list_filter = ["state", "active", "user"]
+    readonly_fields = [
+        "id",
+        "video_id",
+        "is_published",
+        "published_timestamp",
+    ]
+
+    class Meta:
+        model = models.VideoAllProxy
+
+
+admin.site.register(models.VideoAllProxy, VideoAllAdmin)
+
+
+class VideoPublishedProxyAdmin(admin.ModelAdmin):
+    list_display = ["title", "video_id"]
+    search_fields = ["title"]
+    readonly_fields = ["user", "id", "is_published", "published_timestamp"]
+
+    class Meta:
+        model = models.VideoPublishedProxy
+
+    def get_queryset(self, request):
+        return models.VideoPublishedProxy.objects.filter(active=True)
+
+
+admin.site.register(models.VideoPublishedProxy, VideoPublishedProxyAdmin)
