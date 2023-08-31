@@ -10,5 +10,5 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ["title", "description", "id"]
+        fields = ["title", "description", "id", "video_id"]
         read_only_fields = ["id"]

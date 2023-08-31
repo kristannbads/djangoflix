@@ -52,12 +52,16 @@ admin.site.register(models.User, UserAdmin)
 
 
 class VideoAllAdmin(admin.ModelAdmin):
-    list_display = ["title", "video_id", "state", "is_published"]
+    list_display = [
+        "title",
+        "video_id",
+        "state",
+        "is_published",
+    ]
     search_fields = ["title"]
     list_filter = ["state", "active", "user"]
     readonly_fields = [
         "id",
-        "video_id",
         "is_published",
         "published_timestamp",
     ]
@@ -81,4 +85,19 @@ class VideoPublishedProxyAdmin(admin.ModelAdmin):
         return models.VideoPublishedProxy.objects.filter(active=True)
 
 
+class PlaylistItemInline(admin.TabularInline):
+    model = models.PlaylistItem
+    extra = 0
+
+
+class PlaylistAdmin(admin.ModelAdmin):
+    inlines = [PlaylistItemInline]
+    fields = ["title", "description", "slug", "state", "active"]
+
+    class Meta:
+        model = models.Playlist
+
+
 admin.site.register(models.VideoPublishedProxy, VideoPublishedProxyAdmin)
+
+admin.site.register(models.Playlist, PlaylistAdmin)

@@ -79,6 +79,15 @@ class Video(models.Model):
     def is_published(self):
         return self.active
 
+    def get_playlist_ids(self):
+
+        playlists = self.playlist_item.all()
+        if playlists.exists():
+
+            return list(self.playlist_item.all().values_list("id", flat=True))
+        else:
+            return []
+
     def __str__(self):
         return self.title
 
@@ -99,3 +108,56 @@ class VideoPublishedProxy(Video):
 
 pre_save.connect(publish_state_pre_save, sender=Video)
 pre_save.connect(slugify_pre_save, sender=Video)
+
+
+class Playlist(models.Model):
+    """Playlist object"""
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    slug = models.SlugField(blank=True, null=True)
+    video = models.ForeignKey(
+        Video,
+        related_name="playlist_featured",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    videos = models.ManyToManyField(
+        Video,
+        related_name="playlist_item",
+        blank=True,
+        through="PlaylistItem",
+    )
+    active = models.BooleanField(default=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    state = models.CharField(
+        max_length=2,
+        choices=PublishStateOptions.choices,
+        default=PublishStateOptions.DRAFT,
+    )
+    published_timestamp = models.DateTimeField(
+        auto_now_add=False, auto_now=False, blank=True, null=True
+    )
+
+    @property
+    def is_published(self):
+        return self.active
+
+    def __str__(self):
+        return self.title
+
+
+class PlaylistItem(models.Model):
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE)
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    order = models.IntegerField(default=1)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "-timestamp"]
+
+
+pre_save.connect(publish_state_pre_save, sender=Playlist)
+pre_save.connect(slugify_pre_save, sender=Playlist)

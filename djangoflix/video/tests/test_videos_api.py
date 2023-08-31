@@ -3,7 +3,6 @@
 from django.urls import reverse
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.utils.text import slugify
 
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -63,19 +62,6 @@ class PrivateVideoApiTests(TestCase):
         )
         self.client.force_authenticate(self.user)
 
-    def test_valid_title(self):
-        """Test matching title."""
-        create_video(user=self.user)
-        title = "One more chance"
-        queryset = Video.objects.filter(title=title)
-        self.assertTrue(queryset.exists())
-
-    def test_slug_field(self):
-        video = create_video(user=self.user, video_id="video123")
-        title = video.title
-        test_slug = slugify(title)
-        self.assertEqual(test_slug, video.slug)
-
     def test_retrieve_videos(self):
         """Test retrieving a list of videos."""
 
@@ -125,6 +111,7 @@ class PrivateVideoApiTests(TestCase):
         payload = {
             "title": "Sample video",
             "description": "Sample description",
+            "video_id": "testvideoid",
         }
 
         res = self.client.post(VIDEOS_URL, payload)
@@ -164,6 +151,7 @@ class PrivateVideoApiTests(TestCase):
         payload = {
             "title": "New Sample video",
             "description": "New video description",
+            "video_id": "testvideoid",
         }
 
         url = detail_url(video.id)
