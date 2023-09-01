@@ -130,6 +130,26 @@ class ModelVideoTests(TestCase):
 class ModelPlaylistTests(TestCase):
     """Test Playlist model."""
 
+    def create_show_with_seasons(self):
+        """Test creating a playlist with parent."""
+        the_office = Playlist.objects.create(title="The Office Series")
+        Playlist.objects.create(
+            title="The Office Series Season 1",
+            parent=the_office,
+            order=1,
+        )
+        Playlist.objects.create(
+            title="The Office Series Season 2",
+            parent=the_office,
+            order=2,
+        )
+        Playlist.objects.create(
+            title="The Office Series Season 3",
+            parent=the_office,
+            order=3,
+        )
+        self.show = the_office
+
     def setUp(self):
         self.client = APIClient()
 
@@ -144,6 +164,7 @@ class ModelPlaylistTests(TestCase):
             user=self.user, title="My title B", video_id="abc1234"
         )
         self.client.force_authenticate(self.user)
+        self.create_show_with_seasons()
 
     def test_create_playlist(self):
         """Test creating a playlist is successful."""
@@ -160,6 +181,13 @@ class ModelPlaylistTests(TestCase):
         )
 
         self.assertEqual(str(playlist), playlist.title)
+
+    def test_show_has_seasons(self):
+        """Test show it show has seasons."""
+
+        seasons = self.show.playlist_set.all()
+        self.assertTrue(seasons.exists())
+        self.assertEqual(seasons.count(), 3)
 
     def test_valid_title(self):
         """Test matching title."""

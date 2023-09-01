@@ -6,6 +6,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
 from core import models
+from core.db.models import PlaylistTypeChoices
 
 
 class UserAdmin(BaseUserAdmin):
@@ -85,6 +86,65 @@ class VideoPublishedProxyAdmin(admin.ModelAdmin):
         return models.VideoPublishedProxy.objects.filter(active=True)
 
 
+admin.site.register(models.VideoPublishedProxy, VideoPublishedProxyAdmin)
+
+
+class MovieProxyAdmin(admin.ModelAdmin):
+    fields = ["title", "description", "state", "video", "slug"]
+    list_display = ["title"]
+
+    class Meta:
+        model = models.MovieProxy
+
+    def get_queryset(self, request):
+        return models.MovieProxy.objects.all()
+
+
+admin.site.register(models.MovieProxy, MovieProxyAdmin)
+
+
+class SeasonEpisodeInline(admin.TabularInline):
+    model = models.PlaylistItem
+    extra = 0
+
+
+class TVShowSeasonProxyAdmin(admin.ModelAdmin):
+    inlines = [SeasonEpisodeInline]
+    fields = ["title", "description", "slug", "state", "active"]
+    list_display = ["title", "parent"]
+    readonly_fields = ["parent"]
+
+    class Meta:
+        model = models.TVShowSeasonProxy
+
+    def get_queryset(self, request):
+        return models.TVShowSeasonProxy.objects.all()
+
+
+admin.site.register(models.TVShowSeasonProxy, TVShowSeasonProxyAdmin)
+
+
+class TVShowSeasonProxyInline(admin.TabularInline):
+    model = models.TVShowSeasonProxy
+    extra = 0
+    fields = ["order", "title", "state"]
+
+
+class TVShowProxyAdmin(admin.ModelAdmin):
+    inlines = [TVShowSeasonProxyInline]
+    fields = ["title", "description", "state", "video", "slug"]
+    list_display = ["title"]
+
+    class Meta:
+        model = models.TVShowProxy
+
+    def get_queryset(self, request):
+        return models.TVShowProxy.objects.all()
+
+
+admin.site.register(models.TVShowProxy, TVShowProxyAdmin)
+
+
 class PlaylistItemInline(admin.TabularInline):
     model = models.PlaylistItem
     extra = 0
@@ -92,12 +152,15 @@ class PlaylistItemInline(admin.TabularInline):
 
 class PlaylistAdmin(admin.ModelAdmin):
     inlines = [PlaylistItemInline]
-    fields = ["title", "description", "slug", "state", "active"]
+    fields = ["title", "description", "type", "slug", "state", "active"]
 
     class Meta:
         model = models.Playlist
 
+    def get_queryset(self, request):
+        return models.Playlist.objects.filter(
+            type=PlaylistTypeChoices.PLAYLIST
+        )
 
-admin.site.register(models.VideoPublishedProxy, VideoPublishedProxyAdmin)
 
 admin.site.register(models.Playlist, PlaylistAdmin)

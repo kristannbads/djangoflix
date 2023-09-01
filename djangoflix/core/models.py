@@ -2,6 +2,7 @@
 Database models.
 """
 
+from django.utils import timezone
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import pre_save
@@ -11,7 +12,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 
-from core.db.models import PublishStateOptions
+from core.db.models import PublishStateOptions, PlaylistTypeChoices
 from core.db.receivers import slugify_pre_save, publish_state_pre_save
 
 
@@ -110,10 +111,39 @@ pre_save.connect(publish_state_pre_save, sender=Video)
 pre_save.connect(slugify_pre_save, sender=Video)
 
 
+class PlaylistQuerySet(models.QuerySet):
+    """Query set for Playlist Model"""
+
+    def published(self):
+        now = timezone.now()
+        return self.filter(
+            state=PublishStateOptions.PUBLISH, publish_timestamp__lte=now
+        )
+
+
+class PlaylistManager(models.Manager):
+    """Manager for Playlist Model"""
+
+    def get_queryset(self):
+        return PlaylistQuerySet(self.model, using=self._db)
+
+    def published(self):
+        return self.get_queryset().published()
+
+
 class Playlist(models.Model):
     """Playlist object"""
 
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    order = models.IntegerField(default=1)
     title = models.CharField(max_length=255)
+    type = models.CharField(
+        max_length=3,
+        choices=PlaylistTypeChoices.choices,
+        default=PlaylistTypeChoices.PLAYLIST,
+    )
     description = models.TextField(blank=True, null=True)
     slug = models.SlugField(blank=True, null=True)
     video = models.ForeignKey(
@@ -141,6 +171,8 @@ class Playlist(models.Model):
         auto_now_add=False, auto_now=False, blank=True, null=True
     )
 
+    objects = PlaylistManager()
+
     @property
     def is_published(self):
         return self.active
@@ -161,3 +193,69 @@ class PlaylistItem(models.Model):
 
 pre_save.connect(publish_state_pre_save, sender=Playlist)
 pre_save.connect(slugify_pre_save, sender=Playlist)
+
+
+class MovieProxyManager(models.Manager):
+    def all(self):
+        return self.get_queryset().filter(
+            parent__isnull=True,
+            type=PlaylistTypeChoices.MOVIE,
+        )
+
+
+class MovieProxy(Playlist):
+
+    objects = MovieProxyManager()
+
+    class Meta:
+        verbose_name = "Movie"
+        verbose_name_plural = "Movies"
+        proxy = True
+
+    def save(self, *args, **kwargs):
+        self.type = PlaylistTypeChoices.MOVIE
+        super().save(*args, **kwargs)
+
+
+class TVShowProxyManager(models.Manager):
+    def all(self):
+        return self.get_queryset().filter(
+            parent__isnull=True,
+            type=PlaylistTypeChoices.SHOW,
+        )
+
+
+class TVShowProxy(Playlist):
+
+    objects = TVShowProxyManager()
+
+    class Meta:
+        verbose_name = "TV Show"
+        verbose_name_plural = "TV Shows"
+        proxy = True
+
+    def save(self, *args, **kwargs):
+        self.type = PlaylistTypeChoices.SHOW
+        super().save(*args, **kwargs)
+
+
+class TVShowSeasonProxyManager(models.Manager):
+    def all(self):
+        return self.get_queryset().filter(
+            parent__isnull=False,
+            type=PlaylistTypeChoices.SEASON,
+        )
+
+
+class TVShowSeasonProxy(Playlist):
+
+    objects = TVShowSeasonProxyManager()
+
+    class Meta:
+        verbose_name = "Season"
+        verbose_name_plural = "Seasons"
+        proxy = True
+
+    def save(self, *args, **kwargs):
+        self.type = PlaylistTypeChoices.SEASON
+        super().save(*args, **kwargs)
