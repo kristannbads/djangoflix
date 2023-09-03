@@ -90,7 +90,7 @@ admin.site.register(models.VideoPublishedProxy, VideoPublishedProxyAdmin)
 
 
 class MovieProxyAdmin(admin.ModelAdmin):
-    fields = ["title", "description", "state", "video", "slug"]
+    fields = ["title", "description", "state", "category", "video", "slug"]
     list_display = ["title"]
 
     class Meta:
@@ -110,7 +110,7 @@ class SeasonEpisodeInline(admin.TabularInline):
 
 class TVShowSeasonProxyAdmin(admin.ModelAdmin):
     inlines = [SeasonEpisodeInline]
-    fields = ["title", "description", "slug", "state", "active"]
+    fields = ["title", "description", "category", "slug", "state", "active"]
     list_display = ["title", "parent"]
     readonly_fields = ["parent"]
 
@@ -132,7 +132,7 @@ class TVShowSeasonProxyInline(admin.TabularInline):
 
 class TVShowProxyAdmin(admin.ModelAdmin):
     inlines = [TVShowSeasonProxyInline]
-    fields = ["title", "description", "state", "video", "slug"]
+    fields = ["title", "description", "state", "category", "video", "slug"]
     list_display = ["title"]
 
     class Meta:
@@ -164,3 +164,5 @@ class PlaylistAdmin(admin.ModelAdmin):
 
 
 admin.site.register(models.Playlist, PlaylistAdmin)
+
+admin.site.register(models.Category)

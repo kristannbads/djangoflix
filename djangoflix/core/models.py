@@ -111,6 +111,22 @@ pre_save.connect(publish_state_pre_save, sender=Video)
 pre_save.connect(slugify_pre_save, sender=Video)
 
 
+class Category(models.Model):
+
+    title = models.CharField(max_length=220)
+    slug = models.SlugField(blank=True, null=True)
+    active = models.BooleanField(default=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
+    def __str__(self):
+        return self.title
+
+
 class PlaylistQuerySet(models.QuerySet):
     """Query set for Playlist Model"""
 
@@ -136,6 +152,9 @@ class Playlist(models.Model):
 
     parent = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    category = models.ForeignKey(
+        Category, blank=True, null=True, on_delete=models.SET_NULL
     )
     order = models.IntegerField(default=1)
     title = models.CharField(max_length=255)

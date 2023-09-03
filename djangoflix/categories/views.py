@@ -1,16 +1,16 @@
-"""Views for Playlist API."""
-from playlist.serializers import PlaylistSerializer
+"""Views for Category API."""
+from categories.serializers import CategorySerializer
 
 from rest_framework import authentication, permissions
 from rest_framework import viewsets
 
-from core.models import Playlist
+from core.models import Category
 
 
-class PlaylistViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(viewsets.ModelViewSet):
     """View for playlist APIs."""
 
-    serializer_class = PlaylistSerializer
-    queryset = Playlist.objects.all()
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]

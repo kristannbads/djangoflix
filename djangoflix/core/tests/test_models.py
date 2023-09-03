@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from django.utils.text import slugify
 
-from core.models import Playlist, Video
+from core.models import Playlist, Video, Category
 from core.db.models import PublishStateOptions
 
 
@@ -242,3 +242,33 @@ class ModelPlaylistTests(TestCase):
         )
 
         self.assertEqual(v_qs, video_qs, playlist_item_qs)
+
+
+class CategoryTestCase(TestCase):
+    """Test category model."""
+
+    def setUp(self):
+        cat_a = Category.objects.create(title="Action")
+        cat_b = Category.objects.create(title="Comedy", active=False)
+
+        self.playlist = Playlist.objects.create(
+            title="This is my title", category=cat_a
+        )
+
+        self.cat_a = cat_a
+        self.cat_b = cat_b
+
+        def test_is_active(self):
+            """Test if instance of a model is active."""
+            self.assertTrue(self.cat_a.active)
+
+        def test_is_not_active(self):
+            """Test if instance of a model is not active."""
+            self.assertFalse(self.cat_b.active)
+
+        def test_category_on_playlist(self):
+            """Test if category exists on playlist."""
+            qs = self.cat_a.playlist_set.all()
+
+            self.assertTrue(self.playlist.category.exists())
+            self.assertEqual(qs.count(), 1)
