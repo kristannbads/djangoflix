@@ -11,6 +11,9 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericRelation
 
 from core.db.models import PublishStateOptions, PlaylistTypeChoices
 from core.db.receivers import slugify_pre_save, publish_state_pre_save
@@ -111,7 +114,17 @@ pre_save.connect(publish_state_pre_save, sender=Video)
 pre_save.connect(slugify_pre_save, sender=Video)
 
 
+class TaggedItem(models.Model):
+    """Tag object"""
+
+    tag = models.SlugField()
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+
 class Category(models.Model):
+    """Category object"""
 
     title = models.CharField(max_length=220)
     slug = models.SlugField(blank=True, null=True)
@@ -189,6 +202,7 @@ class Playlist(models.Model):
     published_timestamp = models.DateTimeField(
         auto_now_add=False, auto_now=False, blank=True, null=True
     )
+    tags = GenericRelation(TaggedItem, related_query_name="playlist")
 
     objects = PlaylistManager()
 

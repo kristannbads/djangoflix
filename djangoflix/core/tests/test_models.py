@@ -4,11 +4,14 @@ Tests for models.
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.apps import apps
 
 from rest_framework.test import APIClient
 from django.utils.text import slugify
+from django.db.utils import IntegrityError
+from django.contrib.contenttypes.models import ContentType
 
-from core.models import Playlist, Video, Category
+from core.models import Playlist, TaggedItem, Video, Category
 from core.db.models import PublishStateOptions
 
 
@@ -272,3 +275,98 @@ class CategoryTestCase(TestCase):
 
             self.assertTrue(self.playlist.category.exists())
             self.assertEqual(qs.count(), 1)
+
+
+class TaggedItemTestCase(TestCase):
+    """Test taggeditem model."""
+
+    def setUp(self):
+        # self.tag_a = TaggedItem.objects.create(tag="new-tag")
+        ply_title = "New title"
+        self.playlist_obj = Playlist.objects.create(title=ply_title)
+        self.playlist_obj2 = Playlist.objects.create(title=ply_title)
+        self.ply_title = ply_title
+        self.playlist_obj.tags.add(TaggedItem(tag="new tag"), bulk=False)
+        self.playlist_obj2.tags.add(TaggedItem(tag="new tag"), bulk=False)
+
+    def test_content_type_is_not_null(self):
+        """Test if content type is not null."""
+        with self.assertRaises(IntegrityError):
+            self.tag_a = TaggedItem.objects.create(tag="new-tag")
+
+    def test_create_via_content_type(self):
+        """Test creating using content type."""
+        c_type = ContentType.objects.get(app_label="core", model="playlist")
+
+        tag_a = TaggedItem.objects.create(
+            content_type=c_type,
+            object_id=1,
+            tag="new-tag",
+        )
+        self.assertIsNotNone(tag_a.pk)
+
+        tag_b = TaggedItem.objects.create(
+            content_type=c_type,
+            object_id=100,
+            tag="new-tag2",
+        )
+        self.assertIsNotNone(tag_b.pk)
+
+    def test_case_via_model_content_type(self):
+        """Test creating tags via model."""
+        c_type = ContentType.objects.get_for_model(Playlist)
+
+        tag_a = TaggedItem.objects.create(
+            content_type=c_type,
+            object_id=1,
+            tag="new-tag",
+        )
+        self.assertIsNotNone(tag_a.pk)
+
+    def test_case_via_app_loader_content_type(self):
+        """Test creating tags via app loader."""
+        PlaylistKlass = apps.get_model(
+            app_label="core", model_name="Playlist"
+        )
+
+        c_type = ContentType.objects.get_for_model(PlaylistKlass)
+
+        tag_a = TaggedItem.objects.create(
+            content_type=c_type,
+            object_id=1,
+            tag="new-tag",
+        )
+        self.assertIsNotNone(tag_a.pk)
+
+    def test_related_field(self):
+        """Test if tags exists on playlist object."""
+
+        self.assertTrue(self.playlist_obj.tags.all().exists)
+        self.assertEqual(self.playlist_obj.tags.count(), 1)
+
+    def test_related_field_create(self):
+        """Test creating and adding tags in an existing object."""
+
+        self.playlist_obj.tags.create(tag="another-tag")
+        self.assertEqual(self.playlist_obj.tags.count(), 2)
+
+    def test_related_field_query_name(self):
+        """Test related field exists in playlist object."""
+        qs = TaggedItem.objects.filter(playlist__title__iexact=self.ply_title)
+        self.assertEqual(qs.count(), 2)
+
+    def test_related_field_via_content_type(self):
+        """Test creating related field exists."""
+        c_type = ContentType.objects.get_for_model(Playlist)
+
+        tag_qs = TaggedItem.objects.filter(
+            content_type=c_type,
+            object_id=self.playlist_obj.id,
+        )
+        self.assertEqual(tag_qs.count(), 1)
+
+    def test_direct_obj_creation(self):
+        """Test creating tags in an object."""
+        obj = self.playlist_obj
+        tag = TaggedItem.objects.create(content_object=obj, tag="another1")
+        self.assertIsNotNone(tag.pk)

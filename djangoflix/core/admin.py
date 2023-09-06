@@ -4,9 +4,15 @@ Django admin customization.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
+from django.contrib.contenttypes.admin import GenericTabularInline
 
 from core import models
 from core.db.models import PlaylistTypeChoices
+
+
+class TaggedItemInline(GenericTabularInline):
+    model = models.TaggedItem
+    extra = 0
 
 
 class UserAdmin(BaseUserAdmin):
@@ -53,6 +59,7 @@ admin.site.register(models.User, UserAdmin)
 
 
 class VideoAllAdmin(admin.ModelAdmin):
+    inlines = [TaggedItemInline]
     list_display = [
         "title",
         "video_id",
@@ -90,6 +97,7 @@ admin.site.register(models.VideoPublishedProxy, VideoPublishedProxyAdmin)
 
 
 class MovieProxyAdmin(admin.ModelAdmin):
+    inlines = [TaggedItemInline]
     fields = ["title", "description", "state", "category", "video", "slug"]
     list_display = ["title"]
 
@@ -109,7 +117,7 @@ class SeasonEpisodeInline(admin.TabularInline):
 
 
 class TVShowSeasonProxyAdmin(admin.ModelAdmin):
-    inlines = [SeasonEpisodeInline]
+    inlines = [TaggedItemInline, SeasonEpisodeInline]
     fields = ["title", "description", "category", "slug", "state", "active"]
     list_display = ["title", "parent"]
     readonly_fields = ["parent"]
@@ -131,7 +139,7 @@ class TVShowSeasonProxyInline(admin.TabularInline):
 
 
 class TVShowProxyAdmin(admin.ModelAdmin):
-    inlines = [TVShowSeasonProxyInline]
+    inlines = [TaggedItemInline, TVShowSeasonProxyInline]
     fields = ["title", "description", "state", "category", "video", "slug"]
     list_display = ["title"]
 
@@ -151,7 +159,7 @@ class PlaylistItemInline(admin.TabularInline):
 
 
 class PlaylistAdmin(admin.ModelAdmin):
-    inlines = [PlaylistItemInline]
+    inlines = [TaggedItemInline, PlaylistItemInline]
     fields = ["title", "description", "type", "slug", "state", "active"]
 
     class Meta:
@@ -166,3 +174,14 @@ class PlaylistAdmin(admin.ModelAdmin):
 admin.site.register(models.Playlist, PlaylistAdmin)
 
 admin.site.register(models.Category)
+
+
+class TaggedItemAdmin(admin.ModelAdmin):
+    fields = ["tag", "content_type", "object_id", "content_object"]
+    readonly_fields = ["content_object"]
+
+    class Meta:
+        model = models.TaggedItem
+
+
+admin.site.register(models.TaggedItem, TaggedItemAdmin)

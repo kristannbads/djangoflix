@@ -58,12 +58,8 @@ class PrivateCategoryApiTests(TestCase):
             email="user@example.com",
             password="test123",
         )
-        self.cat_a = Category.objects.create(
-            title="My title a"
-        )
-        self.cat_b = Category.objects.create(
-            title="My title b"
-        )
+        self.cat_a = Category.objects.create(title="My title a")
+        self.cat_b = Category.objects.create(title="My title b")
         self.client.force_authenticate(self.user)
 
     def test_retrieve_categories(self):
