@@ -1,9 +1,10 @@
-from tags.serializers import TaggedObjectRelatedField, TagSerializer
+from tags.serializers import TagSerializer
 
 from rest_framework import authentication, permissions
 from rest_framework import viewsets
 
 from core.models import TaggedItem
+
 
 # Create your views here.
 class TagViewSet(viewsets.ModelViewSet):
