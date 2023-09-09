@@ -140,7 +140,15 @@ class TVShowSeasonProxyInline(admin.TabularInline):
 
 class TVShowProxyAdmin(admin.ModelAdmin):
     inlines = [TaggedItemInline, TVShowSeasonProxyInline]
-    fields = ["title", "description", "state", "category", "video", "slug"]
+    fields = [
+        "title",
+        "type",
+        "description",
+        "state",
+        "category",
+        "video",
+        "slug",
+    ]
     list_display = ["title"]
 
     class Meta:

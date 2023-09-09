@@ -24,6 +24,6 @@ class VideoViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        """Create a new recipe."""
+        """Create a new video."""
 
         serializer.save(user=self.request.user)
