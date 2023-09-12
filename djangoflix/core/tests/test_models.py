@@ -1,23 +1,26 @@
 """
 Tests for models.
 """
-
+import random
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.apps import apps
+from django.db.models import Avg
 
 from rest_framework.test import APIClient
 from django.utils.text import slugify
 from django.db.utils import IntegrityError
 from django.contrib.contenttypes.models import ContentType
 
-from core.models import Playlist, TaggedItem, Video, Category
-from core.db.models import PublishStateOptions
+from core.models import Playlist, TaggedItem, Video, Category, Rating
+from core.db.models import PublishStateOptions, RatingChoices
+
+User = get_user_model()
 
 
 def create_user(email="user@example.com", password="testpass123"):
     """Create a return a new user."""
-    return get_user_model().objects.create_user(email, password)
+    return User.objects.create_user(email, password)
 
 
 def create_video(user, **kwargs):
@@ -55,7 +58,7 @@ class ModelTests(TestCase):
         """Test creating a user with an email is successful."""
         email = "test@example.com"
         password = "testpass123"
-        user = get_user_model().objects.create_user(
+        user = User.objects.create_user(
             email=email,
             password=password,
         )
@@ -72,17 +75,17 @@ class ModelTests(TestCase):
             ["test4@example.COM", "test4@example.com"],
         ]
         for email, expected in sample_emails:
-            user = get_user_model().objects.create_user(email, "sample123")
+            user = User.objects.create_user(email, "sample123")
             self.assertEqual(user.email, expected)
 
     def test_new_user_without_email_raises_error(self):
         """Test that creating a user without an email raises a ValueError."""
         with self.assertRaises(ValueError):
-            get_user_model().objects.create_user("", "test123")
+            User.objects.create_user("", "test123")
 
     def test_create_superuser(self):
         """Test creating a superuser."""
-        user = get_user_model().objects.create_superuser(
+        user = User.objects.create_superuser(
             "test@example.com",
             "test123",
         )
@@ -105,7 +108,7 @@ class ModelVideoTests(TestCase):
     def test_create_video(self):
         """Test creating a video is successful."""
 
-        user = get_user_model().objects.create_user(
+        user = User.objects.create_user(
             "test@example.com",
             "testpass123",
         )
@@ -172,7 +175,7 @@ class ModelPlaylistTests(TestCase):
     def test_create_playlist(self):
         """Test creating a playlist is successful."""
 
-        user = get_user_model().objects.create_user(
+        user = User.objects.create_user(
             "test@example.com",
             "testpass123",
         )
@@ -370,3 +373,93 @@ class TaggedItemTestCase(TestCase):
         obj = self.playlist_obj
         tag = TaggedItem.objects.create(content_object=obj, tag="another1")
         self.assertIsNotNone(tag.pk)
+
+
+class RatingTestCase(TestCase):
+    """Test for Rating model."""
+
+    def create_playlists(self):
+        """Bulk creation of playlist."""
+        items = []
+        self.playlist_count = random.randint(10, 200)
+        for i in range(0, self.playlist_count):
+            items.append(Playlist(title=f"TV show {i}"))
+        Playlist.objects.bulk_create(items)
+        self.playlists = Playlist.objects.all()
+
+    def create_users(self):
+        """Bulk creation of users."""
+        items = []
+        self.user_count = random.randint(10, 100)
+        for i in range(0, self.user_count):
+            items.append(User(email=f"user_{i}@example.com"))
+        User.objects.bulk_create(items)
+        self.users = User.objects.all()
+
+    def create_ratings(self):
+        """Bulk creation of ratings."""
+        items = []
+        self.rating_totals = []
+        self.rating_count = 1_000
+        for i in range(0, self.rating_count):
+            user_obj = self.users.order_by("?").first()
+            ply_obj = self.playlists.order_by("?").first()
+            rating_val = random.choice(RatingChoices.choices)[0]
+            if rating_val is not None:
+                self.rating_totals.append(rating_val)
+            items.append(
+                Rating(
+                    user=user_obj, content_object=ply_obj, value=rating_val
+                )
+            )
+        Rating.objects.bulk_create(items)
+        self.ratings = Rating.objects.all()
+
+    def setUp(self):
+        self.create_users()
+        self.create_playlists()
+        self.create_ratings()
+
+    def test_user_count(self):
+        """Test user count."""
+        qs = User.objects.all()
+        self.assertTrue(qs.exists())
+        self.assertEqual(qs.count(), self.user_count)
+        self.assertEqual(self.users.count(), self.user_count)
+
+    def test_playlist_count(self):
+        """Test playlist count."""
+        qs = Playlist.objects.all()
+        self.assertTrue(qs.exists())
+        self.assertEqual(qs.count(), self.playlist_count)
+        self.assertEqual(self.playlists.count(), self.playlist_count)
+
+    def test_rating_count(self):
+        """Test rating count."""
+        qs = Rating.objects.all()
+        self.assertTrue(qs.exists())
+        self.assertEqual(qs.count(), self.rating_count)
+        self.assertEqual(self.ratings.count(), self.rating_count)
+
+    def test_rating_random_choices(self):
+        """Test values for the rating choices."""
+        value_set = set(Rating.objects.values_list("value", flat=True))
+        self.assertTrue(len(value_set) > 1)
+
+    def test_rating_agg(self):
+        """Test average method from rating model."""
+        db_avg = Rating.objects.aggregate(average=Avg("value"))["average"]
+        self.assertIsNotNone(db_avg)
+        self.assertTrue(db_avg > 0)
+
+        total_sum = sum(self.rating_totals)
+        passed_avg = total_sum / (len(self.rating_totals) * 1.0)
+        self.assertEqual(round(passed_avg, 2), round(db_avg, 2))
+
+    def test_rating_playlist_agg(self):
+        """Test average method from playlist model."""
+        item_1 = Playlist.objects.aggregate(average=Avg("ratings__value"))[
+            "average"
+        ]
+        self.assertIsNotNone(item_1)
+        self.assertTrue(item_1 > 0)

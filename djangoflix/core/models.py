@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import pre_save
+from django.db.models import Avg, Max, Min
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
@@ -15,7 +16,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.fields import GenericRelation
 
-from core.db.models import PublishStateOptions, PlaylistTypeChoices
+from core.db.models import (
+    PublishStateOptions,
+    PlaylistTypeChoices,
+    RatingChoices,
+)
 from core.db.receivers import slugify_pre_save, publish_state_pre_save
 
 
@@ -126,6 +131,20 @@ class TaggedItem(models.Model):
         return self.tag
 
 
+class Rating(models.Model):
+    """Tag object"""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
+    )
+    value = models.IntegerField(
+        null=True, blank=True, choices=RatingChoices.choices
+    )
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+
 class Category(models.Model):
     """Category object"""
 
@@ -206,12 +225,29 @@ class Playlist(models.Model):
         auto_now_add=False, auto_now=False, blank=True, null=True
     )
     tags = GenericRelation(TaggedItem, related_query_name="playlist")
+    ratings = GenericRelation(Rating, related_query_name="playlist")
 
     objects = PlaylistManager()
 
     @property
     def is_published(self):
         return self.active
+
+    def get_rating_avg(self):
+        if not self.ratings:
+            return None
+        else:
+            return Playlist.objects.filter(id=self.id).aggregate(
+                average=Avg("ratings__value")
+            )
+
+    def get_rating_spread(self):
+        if not self.ratings:
+            return None
+        else:
+            return Playlist.objects.filter(id=self.id).aggregate(
+                max=Max("ratings__value"), min=Min("ratings__value")
+            )
 
     def __str__(self):
         return self.title
