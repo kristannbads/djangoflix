@@ -10,9 +10,19 @@ from django.db.models import Avg
 from rest_framework.test import APIClient
 from django.utils.text import slugify
 from django.db.utils import IntegrityError
+from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 
-from core.models import Playlist, TaggedItem, Video, Category, Rating
+from core.models import (
+    MovieProxy,
+    Playlist,
+    TaggedItem,
+    Video,
+    Category,
+    Rating,
+    TVShowProxy,
+    TVShowSeasonProxy,
+)
 from core.db.models import PublishStateOptions, RatingChoices
 
 User = get_user_model()
@@ -219,6 +229,11 @@ class ModelPlaylistTests(TestCase):
 
     def test_video_playlist_ids_property(self):
         """Test videos on playlist"""
+        Playlist.objects.create(
+            title="Sample Playlist",
+            description="Sample desc",
+            video=self.video_a,
+        )
         ids = self.video_a.get_playlist_ids()
         actual_ids = list(
             Playlist.objects.filter(video=self.video_a).values_list(
@@ -248,6 +263,213 @@ class ModelPlaylistTests(TestCase):
         )
 
         self.assertEqual(v_qs, video_qs, playlist_item_qs)
+
+
+class MovieProxyTests(TestCase):
+    """Test MovieProxy model."""
+
+    def setUp(self):
+        self.movie_title = "This is my title"
+        self.published_item_count = 1
+        self.client = APIClient()
+
+        self.user = create_user(
+            email="user@example.com",
+            password="test123",
+        )
+        self.video_a = Video.objects.create(
+            user=self.user, title="My title", video_id="abc123"
+        )
+        self.video_b = Video.objects.create(
+            user=self.user, title="My title B", video_id="abc1234"
+        )
+        self.movie_a = MovieProxy.objects.create(
+            title=self.movie_title,
+            state=PublishStateOptions.PUBLISH,
+        )
+        self.movie_b = MovieProxy.objects.create(
+            title=self.movie_title,
+        )
+
+        self.client.force_authenticate(self.user)
+
+    def test_create_movie(self):
+        """Test creating a movie is successful."""
+        self.assertEqual(str(self.movie_a), self.movie_title)
+
+    def test_movie_clip_items(self):
+        """Test creating video in a movie"""
+        self.movie_a.videos.set([self.video_a])
+        count = self.movie_a.videos.all().count()
+        self.assertEqual(count, 1)
+
+    def test_valid_title(self):
+        """Test matching title."""
+        title = self.movie_title
+        queryset = MovieProxy.objects.filter(title=title)
+        self.assertTrue(queryset.exists())
+
+    def test_slug_field(self):
+        """Test creating slug for movie"""
+        title = self.movie_title
+        test_slug = slugify(title)
+        self.assertEqual(test_slug, self.movie_a.slug)
+
+    def test_draft_case(self):
+        """ "Test count of draft state created by MovieProxy."""
+        qs = MovieProxy.objects.filter(state=PublishStateOptions.DRAFT)
+        self.assertEqual(qs.count(), 1)
+
+    def test_publish_case(self):
+        """ "Test count of draft state created by MovieProxy."""
+        qs = MovieProxy.objects.filter(state=PublishStateOptions.PUBLISH)
+        self.assertEqual(qs.count(), 1)
+
+    def test_publish_manager(self):
+        published_qs = MovieProxy.objects.all().published()
+        published_qs_2 = MovieProxy.objects.published()
+        self.assertTrue(published_qs.exists())
+        self.assertEqual(published_qs.count(), published_qs_2.count())
+        self.assertEqual(published_qs.count(), self.published_item_count)
+
+
+class TVShowProxyModelTestCase(TestCase):
+    def create_show_with_seasons(self):
+        the_office = TVShowProxy.objects.create(title="The Office Series")
+        self.season_1 = TVShowSeasonProxy.objects.create(
+            title="The Office Series Season 1",
+            state=PublishStateOptions.PUBLISH,
+            parent=the_office,
+            order=1,
+        )
+
+        TVShowSeasonProxy.objects.create(
+            title="The Office Series Season 2", parent=the_office, order=2
+        )
+        TVShowSeasonProxy.objects.create(
+            title="The Office Series Season 3", parent=the_office, order=3
+        )
+        TVShowSeasonProxy.objects.create(
+            title="The Office Series Season 4", parent=the_office, order=4
+        )
+
+        self.season_11 = TVShowSeasonProxy.objects.create(
+            title="The Office Series Season 11", parent=the_office, order=4
+        )
+        self.show = the_office
+
+    def create_videos(self):
+        video_a = Video.objects.create(
+            user=self.user, title="My title", video_id="abc123"
+        )
+        video_b = Video.objects.create(
+            user=self.user, title="My title", video_id="abc1233"
+        )
+        video_c = Video.objects.create(
+            user=self.user, title="My title", video_id="abc1234"
+        )
+        self.video_a = video_a
+        self.video_b = video_b
+        self.video_c = video_c
+        self.video_qs = Video.objects.all()
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = create_user(
+            email="user@example.com",
+            password="test123",
+        )
+        self.client.force_authenticate(self.user)
+
+        self.create_videos()
+        self.create_show_with_seasons()
+        self.obj_a = TVShowProxy.objects.create(
+            title="This is my title", video=self.video_a
+        )
+        obj_b = TVShowProxy.objects.create(
+            title="This is my title", state=PublishStateOptions.PUBLISH
+        )
+
+        obj_b.videos.set(self.video_qs)
+        obj_b.save()
+        self.obj_b = obj_b
+
+    def test_show_has_seasons(self):
+        seasons = self.show.playlist_set.all()
+        self.assertTrue(seasons.exists())
+        self.assertEqual(seasons.count(), 5)
+
+    def test_season_slug_unique(self):
+        self.assertNotEqual(self.season_1.slug, self.season_11.slug)
+
+    def test_playlist_video(self):
+        self.assertEqual(self.obj_a.video, self.video_a)
+
+    def test_playlist_video_items(self):
+        count = self.obj_b.videos.all().count()
+        self.assertEqual(count, 3)
+
+    def test_playlist_video_through_model(self):
+        v_qs = sorted(list(self.video_qs.values_list("id")))
+        video_qs = sorted(list(self.obj_b.videos.all().values_list("id")))
+        playlist_item_qs = sorted(
+            list(self.obj_b.playlistitem_set.all().values_list("video"))
+        )
+        self.assertEqual(v_qs, video_qs, playlist_item_qs)
+
+    def test_video_playlist_ids_property(self):
+        ids = self.obj_a.video.get_playlist_ids()
+        actual_ids = list(
+            TVShowProxy.objects.all()
+            .filter(video=self.video_a)
+            .values_list("id", flat=True)
+        )
+        self.assertEqual(ids, actual_ids)
+
+    def test_video_playlist(self):
+        qs = self.video_a.playlist_featured.all()
+        self.assertEqual(qs.count(), 1)
+
+    def test_slug_field(self):
+        title = self.obj_a.title
+        test_slug = slugify(title)
+        self.assertEqual(test_slug, self.obj_a.slug)
+
+    def test_valid_title(self):
+        title = "This is my title"
+        qs = TVShowProxy.objects.all().filter(title=title)
+        self.assertTrue(qs.exists())
+
+    def test_tv_shows_created_count(self):
+        qs = TVShowProxy.objects.all()
+        self.assertEqual(qs.count(), 3)
+
+    def test_seasons_created_count(self):
+        qs = TVShowSeasonProxy.objects.all()
+        self.assertEqual(qs.count(), 5)
+
+    def test_tv_show_draft_case(self):
+        qs = TVShowProxy.objects.all().filter(state=PublishStateOptions.DRAFT)
+        self.assertEqual(qs.count(), 2)
+
+    def test_seasons_draft_case(self):
+        qs = TVShowSeasonProxy.objects.all().filter(
+            state=PublishStateOptions.DRAFT
+        )
+        self.assertEqual(qs.count(), 4)
+
+    def test_publish_case(self):
+        now = timezone.now()
+        published_qs = TVShowProxy.objects.all().filter(
+            state=PublishStateOptions.PUBLISH, published_timestamp__lte=now
+        )
+        self.assertTrue(published_qs.exists())
+
+    def test_publish_manager(self):
+        published_qs = TVShowProxy.objects.all().published()
+        published_qs_2 = TVShowProxy.objects.all().published()
+        self.assertTrue(published_qs.exists())
+        self.assertEqual(published_qs.count(), published_qs_2.count())
 
 
 class CategoryTestCase(TestCase):
