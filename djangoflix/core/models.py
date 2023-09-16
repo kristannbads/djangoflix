@@ -89,13 +89,7 @@ class Video(models.Model):
         return self.active
 
     def get_playlist_ids(self):
-
-        playlists = self.playlist_item.all()
-        if playlists.exists():
-
-            return list(self.playlist_item.all().values_list("id", flat=True))
-        else:
-            return []
+        return list(self.playlist_featured.all().values_list("id", flat=True))
 
     def __str__(self):
         return self.title
@@ -168,7 +162,7 @@ class PlaylistQuerySet(models.QuerySet):
     def published(self):
         now = timezone.now()
         return self.filter(
-            state=PublishStateOptions.PUBLISH, publish_timestamp__lte=now
+            state=PublishStateOptions.PUBLISH, published_timestamp__lte=now
         )
 
 
@@ -180,6 +174,9 @@ class PlaylistManager(models.Manager):
 
     def published(self):
         return self.get_queryset().published()
+
+    def featured_playlist(self):
+        return self.get_queryset().filter(type=PlaylistTypeChoices.PLAYLIST)
 
 
 class Playlist(models.Model):
@@ -249,6 +246,9 @@ class Playlist(models.Model):
                 max=Max("ratings__value"), min=Min("ratings__value")
             )
 
+    def get_short_display(self):
+        return ""
+
     def __str__(self):
         return self.title
 
@@ -263,11 +263,7 @@ class PlaylistItem(models.Model):
         ordering = ["order", "-timestamp"]
 
 
-pre_save.connect(publish_state_pre_save, sender=Playlist)
-pre_save.connect(slugify_pre_save, sender=Playlist)
-
-
-class MovieProxyManager(models.Manager):
+class MovieProxyManager(PlaylistManager):
     def all(self):
         return self.get_queryset().filter(
             parent__isnull=True,
@@ -289,7 +285,7 @@ class MovieProxy(Playlist):
         super().save(*args, **kwargs)
 
 
-class TVShowProxyManager(models.Manager):
+class TVShowProxyManager(PlaylistManager):
     def all(self):
         return self.get_queryset().filter(
             parent__isnull=True,
@@ -310,8 +306,15 @@ class TVShowProxy(Playlist):
         self.type = PlaylistTypeChoices.SHOW
         super().save(*args, **kwargs)
 
+    @property
+    def seasons(self):
+        return self.playlist_set.published()
 
-class TVShowSeasonProxyManager(models.Manager):
+    def get_short_display(self):
+        return f"{self.seasons.count()} Seasons"
+
+
+class TVShowSeasonProxyManager(PlaylistManager):
     def all(self):
         return self.get_queryset().filter(
             parent__isnull=False,
@@ -331,3 +334,16 @@ class TVShowSeasonProxy(Playlist):
     def save(self, *args, **kwargs):
         self.type = PlaylistTypeChoices.SEASON
         super().save(*args, **kwargs)
+
+
+pre_save.connect(publish_state_pre_save, sender=Playlist)
+pre_save.connect(slugify_pre_save, sender=Playlist)
+
+pre_save.connect(publish_state_pre_save, sender=TVShowProxy)
+pre_save.connect(slugify_pre_save, sender=TVShowProxy)
+
+pre_save.connect(publish_state_pre_save, sender=TVShowSeasonProxy)
+pre_save.connect(slugify_pre_save, sender=TVShowSeasonProxy)
+
+pre_save.connect(publish_state_pre_save, sender=MovieProxy)
+pre_save.connect(slugify_pre_save, sender=MovieProxy)

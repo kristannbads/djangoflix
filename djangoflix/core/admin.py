@@ -118,7 +118,15 @@ class SeasonEpisodeInline(admin.TabularInline):
 
 class TVShowSeasonProxyAdmin(admin.ModelAdmin):
     inlines = [TaggedItemInline, SeasonEpisodeInline]
-    fields = ["title", "description", "category", "slug", "state", "active"]
+    fields = [
+        "title",
+        "description",
+        "parent",
+        "category",
+        "slug",
+        "state",
+        "active",
+    ]
     list_display = ["title", "parent"]
     readonly_fields = ["parent"]
 
