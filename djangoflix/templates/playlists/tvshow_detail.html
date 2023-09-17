@@ -1,0 +1,24 @@
+{% extends "base.html" %} 
+
+{% block head_title %}
+    {{object.title}} /
+    {{ block.super}}
+{% endblock %}
+
+
+{% block content %} 
+
+{% if object.title %} 
+    <h1> {{object.title}} </h1>
+{% endif %}
+
+
+{{ object.title }} {{object.slug}} {{ object.get_short_display }}
+
+{% for season in object.seasons %}
+<li>{{season.order}}. {{season.title}} {{ season.slug}}</li>
+{% endfor %}
+
+
+
+{% endblock %}
