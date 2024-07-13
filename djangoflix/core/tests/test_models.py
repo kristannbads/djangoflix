@@ -137,6 +137,7 @@ class ModelVideoTests(TestCase):
         self.assertTrue(queryset.exists())
 
     def test_slug_field(self):
+        """Test generation of slug field."""
         video = create_video(user=self.user, video_id="video123")
         title = video.title
         test_slug = slugify(title)
@@ -309,6 +310,10 @@ class MovieProxyTests(TestCase):
         queryset = MovieProxy.objects.filter(title=title)
         self.assertTrue(queryset.exists())
 
+    def test_movie_slug_unique(self):
+        """Test uniqueness of generated slug."""
+        self.assertNotEqual(self.movie_a.slug, self.movie_b.slug)
+
     def test_slug_field(self):
         """Test creating slug for movie"""
         title = self.movie_title
@@ -326,6 +331,7 @@ class MovieProxyTests(TestCase):
         self.assertEqual(qs.count(), 1)
 
     def test_publish_manager(self):
+        """Test mpublished method of model."""
         published_qs = MovieProxy.objects.all().published()
         published_qs_2 = MovieProxy.objects.published()
         self.assertTrue(published_qs.exists())
@@ -335,6 +341,7 @@ class MovieProxyTests(TestCase):
 
 class TVShowProxyModelTestCase(TestCase):
     def create_show_with_seasons(self):
+        """Test creating show with seasons."""
         the_office = TVShowProxy.objects.create(title="The Office Series")
         self.season_1 = TVShowSeasonProxy.objects.create(
             title="The Office Series Season 1",
@@ -354,7 +361,7 @@ class TVShowProxyModelTestCase(TestCase):
         )
 
         self.season_11 = TVShowSeasonProxy.objects.create(
-            title="The Office Series Season 11", parent=the_office, order=4
+            title="The Office Series Season 1", parent=the_office, order=4
         )
         self.show = the_office
 
@@ -395,21 +402,26 @@ class TVShowProxyModelTestCase(TestCase):
         self.obj_b = obj_b
 
     def test_show_has_seasons(self):
+        """Test if show has seasons."""
         seasons = self.show.playlist_set.all()
         self.assertTrue(seasons.exists())
         self.assertEqual(seasons.count(), 5)
 
-    def test_season_slug_unique(self):
+    def test_show_slug_unique(self):
+        """Test uniqueness of generated slug."""
         self.assertNotEqual(self.season_1.slug, self.season_11.slug)
 
-    def test_playlist_video(self):
+    def test_tvshow_video(self):
+        """Test if video exists on show."""
         self.assertEqual(self.obj_a.video, self.video_a)
 
     def test_playlist_video_items(self):
+        """Test count of video items in palylist."""
         count = self.obj_b.videos.all().count()
         self.assertEqual(count, 3)
 
     def test_playlist_video_through_model(self):
+        """Test different query in getting videos."""
         v_qs = sorted(list(self.video_qs.values_list("id")))
         video_qs = sorted(list(self.obj_b.videos.all().values_list("id")))
         playlist_item_qs = sorted(
@@ -418,6 +430,7 @@ class TVShowProxyModelTestCase(TestCase):
         self.assertEqual(v_qs, video_qs, playlist_item_qs)
 
     def test_video_playlist_ids_property(self):
+        """Test if euqality of video ids."""
         ids = self.obj_a.video.get_playlist_ids()
         actual_ids = list(
             TVShowProxy.objects.all()
@@ -427,38 +440,46 @@ class TVShowProxyModelTestCase(TestCase):
         self.assertEqual(ids, actual_ids)
 
     def test_video_playlist(self):
+        """Test count of featured video."""
         qs = self.video_a.playlist_featured.all()
         self.assertEqual(qs.count(), 1)
 
     def test_slug_field(self):
+        """Test generating slug."""
         title = self.obj_a.title
         test_slug = slugify(title)
         self.assertEqual(test_slug, self.obj_a.slug)
 
     def test_valid_title(self):
+        """Test if filtering through title exists."""
         title = "This is my title"
         qs = TVShowProxy.objects.all().filter(title=title)
         self.assertTrue(qs.exists())
 
     def test_tv_shows_created_count(self):
+        """Test count of created shows."""
         qs = TVShowProxy.objects.all()
         self.assertEqual(qs.count(), 3)
 
     def test_seasons_created_count(self):
+        """Test count of created seasons."""
         qs = TVShowSeasonProxy.objects.all()
         self.assertEqual(qs.count(), 5)
 
     def test_tv_show_draft_case(self):
+        """Test count of show with draft state."""
         qs = TVShowProxy.objects.all().filter(state=PublishStateOptions.DRAFT)
         self.assertEqual(qs.count(), 2)
 
     def test_seasons_draft_case(self):
+        """Test count of seasons with draft state."""
         qs = TVShowSeasonProxy.objects.all().filter(
             state=PublishStateOptions.DRAFT
         )
         self.assertEqual(qs.count(), 4)
 
     def test_publish_case(self):
+        """Test count of show with publish state."""
         now = timezone.now()
         published_qs = TVShowProxy.objects.all().filter(
             state=PublishStateOptions.PUBLISH, published_timestamp__lte=now
@@ -466,6 +487,7 @@ class TVShowProxyModelTestCase(TestCase):
         self.assertTrue(published_qs.exists())
 
     def test_publish_manager(self):
+        """Test mpublished method of model."""
         published_qs = TVShowProxy.objects.all().published()
         published_qs_2 = TVShowProxy.objects.all().published()
         self.assertTrue(published_qs.exists())

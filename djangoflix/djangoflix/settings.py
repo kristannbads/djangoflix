@@ -141,3 +141,35 @@ AUTH_USER_MODEL = "core.User"
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "formatters": {
+#         "standard": {
+#             "format": "[{asctime}] [{levelname}] [{process}] {message}",
+#             "style": "{",
+#         },
+#     },
+#     "handlers": {
+#         "applogfile": {
+#             "level": "DEBUG",
+#             "class": "logging.handlers.RotatingFileHandler",
+#             "filename": os.path.join(BASE_DIR, "django.log"),
+#             "backupCount": 10,
+#             "formatter": "standard",
+#         },
+#         "console": {
+#             "level": "INFO",
+#             "class": "logging.StreamHandler",
+#             "formatter": "standard",
+#         },
+#     },
+#     "loggers": {
+#         "django": {
+#             "handlers": ["applogfile", "console"],
+#             "level": "INFO",
+#             "propagate": False,
+#         },
+#     },
+# }

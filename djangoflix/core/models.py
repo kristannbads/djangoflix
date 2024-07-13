@@ -21,7 +21,7 @@ from core.db.models import (
     PlaylistTypeChoices,
     RatingChoices,
 )
-from core.db.receivers import slugify_pre_save, publish_state_pre_save
+from core.db.receivers import publish_state_pre_save, unique_slugify_pre_save
 
 
 class UserManager(BaseUserManager):
@@ -110,7 +110,7 @@ class VideoPublishedProxy(Video):
 
 
 pre_save.connect(publish_state_pre_save, sender=Video)
-pre_save.connect(slugify_pre_save, sender=Video)
+pre_save.connect(unique_slugify_pre_save, sender=Video)
 
 
 class TaggedItem(models.Model):
@@ -337,13 +337,13 @@ class TVShowSeasonProxy(Playlist):
 
 
 pre_save.connect(publish_state_pre_save, sender=Playlist)
-pre_save.connect(slugify_pre_save, sender=Playlist)
+pre_save.connect(unique_slugify_pre_save, sender=Playlist)
 
 pre_save.connect(publish_state_pre_save, sender=TVShowProxy)
-pre_save.connect(slugify_pre_save, sender=TVShowProxy)
+pre_save.connect(unique_slugify_pre_save, sender=TVShowProxy)
 
 pre_save.connect(publish_state_pre_save, sender=TVShowSeasonProxy)
-pre_save.connect(slugify_pre_save, sender=TVShowSeasonProxy)
+pre_save.connect(unique_slugify_pre_save, sender=TVShowSeasonProxy)
 
 pre_save.connect(publish_state_pre_save, sender=MovieProxy)
-pre_save.connect(slugify_pre_save, sender=MovieProxy)
+pre_save.connect(unique_slugify_pre_save, sender=MovieProxy)
